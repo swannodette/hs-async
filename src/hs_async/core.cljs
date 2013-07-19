@@ -1,5 +1,5 @@
 (ns hs-async.core
-  (:refer-clojure :exclude [map filter])
+  (:refer-clojure :exclude [map filter distinct])
   (:require [cljs.core.async :refer [>! <! chan put! take! timeout]])
   (:require-macros [cljs.core.async.macros :refer [go alt!]]))
 
@@ -50,26 +50,23 @@
 
 (defn map [f in]
   (let [out (chan)]
-    (go (loop []
-          (>! out (f (<! in)))
-          (recur)))
+    (go (while true
+          (>! out (f (<! in)))))
     out))
 
 (defn e->v [e]
   [(.-pageX e) (.-pageY e)])
 
 #_(let [move (map e->v (events js/window "mousemove"))]
-  (go (loop []
-        (.log js/console (pr-str (<! move)))
-        (recur))))
+  (go (while true
+        (.log js/console (pr-str (<! move))))))
 
 (defn filter [pred in]
   (let [out (chan)]
-    (go (loop []
+    (go (while true
           (let [x (<! in)]
             (when (pred x)
-              (>! out x))
-            (recur))))
+              (>! out x)))))
     out))
 
 (defn x-mod-5-y-mod-10 [[x y]]
@@ -79,9 +76,8 @@
 #_(let [filtered (filter x-mod-2-y-mod-3
                  (map e->v
                    (events js/window "mousemove")))]
-  (go (loop []
-        (.log js/console (pr-str (<! filtered)))
-        (recur))))
+  (go (while true
+        (.log js/console (pr-str (<! filtered))))))
 
 ;; =============================================================================
 ;; Timeouts
@@ -108,3 +104,24 @@
     (alt!
       c ([v] (.log js/console "Channel responded"))
       t ([v] (.log js/console "Timeout channel closed!")))))
+
+;; =============================================================================
+;; State
+
+(defn distinct [in]
+  (let [out (chan)]
+    (go (loop [last nil]
+          (let [x (<! in)]
+            (when (not= x last)
+              (>! out x))
+            (recur x))))
+    out))
+
+#_(let [keys (distinct
+             (map #(.-keyCode %)
+               (events js/window "keypress")))]
+  (go (while true
+        (.log js/console (<! keys)))))
+
+;; =============================================================================
+;; More coordination
