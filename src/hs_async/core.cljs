@@ -1,7 +1,7 @@
 (ns hs-async.core
   (:refer-clojure :exclude [map filter])
   (:require [cljs.core.async :refer [>! <! chan put! take! timeout]])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go alt!]]))
 
 ;; ======================================================================
 ;; Basics
@@ -86,9 +86,25 @@
 ;; =============================================================================
 ;; Timeouts
 
-(go
+#_(go
   (.log js/console "Hello")
   (<! (timeout 1000))
   (.log js/console "async")
   (<! (timeout 1000))
   (.log js/console "world!"))
+
+;; =============================================================================
+;; Non-deterministic choice
+
+#_(let [c (chan)
+      t (timeout 1000)]
+  (go
+    (let [[v sc] (alts! [c t])]
+      (.log js/console "Timeout channel closed!" (= sc t)))))
+
+#_(let [c (chan)
+      t (timeout 1000)]
+  (go
+    (alt!
+      c ([v] (.log js/console "Channel responded"))
+      t ([v] (.log js/console "Timeout channel closed!")))))
