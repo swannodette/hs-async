@@ -125,3 +125,66 @@
 
 ;; =============================================================================
 ;; More coordination
+
+(defn fan-in
+  ([ins] (fan-in (chan) ins))
+  ([c ins]
+    (go (while true
+          (let [[x] (alts! ins)]
+            (>! c x))))
+    c))
+
+(defn my-ints []
+  (let [out (chan)]
+    (go (loop [i 1]
+          (>! out i)
+          (recur (inc i))))
+    out))
+
+(defn interval [msecs]
+  (let [out (chan)]
+    (go (while true
+          (>! out (js/Date.))
+          (<! (timeout msecs))))
+    out))
+
+(defn process [name control]
+  (let [out  (chan)
+        ints (my-ints)
+        tick (interval 100)]
+    (go
+      (<! control)
+      (.log js/console "start" name)
+      (loop [acc 0]
+        (let [[v c] (alts! [tick control])]
+          (condp = c
+            control (do (.log js/console "pause" name)
+                      (<! control)
+                      (.log js/console "continue" name)
+                      (recur acc))
+            (do
+              (>! out [name acc])
+              (recur (+ acc (<! ints))))))))
+    out))
+
+(defn now []
+  (js/Date.))
+
+(let [c0    (chan)
+      c1    (chan)
+      out   (fan-in [(process "p0" c0) (process "p1" c1)])
+      keys  (->> (events js/window "keyup")
+              (map #(.-keyCode %))
+              (filter #{32}))]
+  (go
+    (>! c0 (now))
+    (loop [state 0]
+      (recur
+        (alt!
+          out
+          ([v] (do (.log js/console (pr-str v)) state))
+
+          keys
+          ([v] (case state
+                 0 (do (>! c0 (now)) (>! c1 (now)) 1)
+                 1 (do (>! c1 (now)) (>! c0 (now)) 0))))))))
