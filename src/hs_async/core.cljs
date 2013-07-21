@@ -380,12 +380,11 @@
     (alength (by-tag-name list "li")))
   IUIList
   (-select! [list n]
-    (.log js/console n)
     (set-class (nth (by-tag-name list "li") n) "selected"))
   (-unselect! [list n]
     (clear-class (nth (by-tag-name list "li") n))))
 
-(let [el    (by-id "list")
+#_(let [el    (by-id "list")
       hover (hover-chan el "li")
       keys  (->> (events js/window "keydown")
               (map key-event->keycode)
