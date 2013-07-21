@@ -9,8 +9,7 @@
 
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/clojurescript "0.0-1845-RC1"]
-                 [org.clojure/core.match "0.2.0-rc4"]
-                 [core.async "0.1.0-SNAPSHOT"]]
+                 [org.clojure/core.async "0.1.0-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "0.3.2"]]
 

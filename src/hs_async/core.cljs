@@ -44,9 +44,8 @@
     out))
 
 #_(let [move (events js/window "mousemove")]
-  (go (loop []
-        (.log js/console (<! move))
-        (recur))))
+  (go (while true
+        (.log js/console (<! move)))))
 
 (defn map [f in]
   (let [out (chan)]
@@ -73,7 +72,7 @@
   (and (zero? (mod x 5))
        (zero? (mod y 10))))
 
-#_(let [filtered (filter x-mod-2-y-mod-3
+#_(let [filtered (filter x-mod-5-y-mod-10
                  (map e->v
                    (events js/window "mousemove")))]
   (go (while true
@@ -169,12 +168,12 @@
 
 (defn now [] (js/Date.))
 
-#_(let [c0    (chan)
-      c1    (chan)
-      out   (fan-in [(process "p0" c0) (process "p1" c1)])
-      keys  (->> (events js/window "keyup")
-              (map #(.-keyCode %))
-              (filter #{32}))]
+#_(let [c0   (chan)
+      c1   (chan)
+      out  (fan-in [(process "p0" c0) (process "p1" c1)])
+      keys (->> (events js/window "keyup")
+             (map #(.-keyCode %))
+             (filter #{32}))]
   (go
     (>! c0 (now))
     (loop [state 0]
