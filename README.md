@@ -1,13 +1,6 @@
 # hs-async
 
-A Clojure library designed to ... well, that part is up to you.
-
-## Usage
-
-FIXME
-
-## License
-
-Copyright © 2013 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+Install [Leiningen](http://github.com/technomancy/leiningen). You can
+then run `lein cljsbuild auto hs-async` to continuously build the
+examples as you make edits to the main file. You can view the examples
+by opening `index.html` in your favorite browser.
