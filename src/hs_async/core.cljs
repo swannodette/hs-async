@@ -285,6 +285,23 @@
 ;; -----------------------------------------------------------------------------
 ;; Reactive support
 
+(defn put-all! [cs x]
+  (doseq [c cs]
+    (put! c x)))
+
+(defn multiplex [in cs-or-n]
+  (let [cs (if (number? cs-or-n)
+             (repeatedly cs-or-n chan)
+             cs-or-n)]
+    (go (loop []
+          (let [x (<! in)]
+            (if-not (nil? x)
+              (do
+                (put-all! cs x)
+                (recur))
+              :done))))
+    cs))
+
 (defn hover-chan [el tag]
   (let [matcher (tag-match tag)
         matches (by-tag-name el tag)
@@ -357,7 +374,7 @@
   (-unselect! [list n]
     (clear-class (nth (by-tag-name list "li") n))))
 
-(let [el    (by-id "list")
+#_(let [el    (by-id "list")
       hover (hover-chan el "li")
       keys  (->> (events js/window "keydown")
               (map key-event->keycode)
@@ -376,6 +393,20 @@
 (extend-type array
   IUIList
   (-select! [list n]
-    (aset list n (str "* " (aget list n))))
+    (aset list n (.replace (aget list n) "  " "* ")))
   (-unselect! [list n]
-    (aset list n (.replace (aget list n) "* " ""))))
+    (aset list n (.replace (aget list n) "* " "  "))))
+
+(let [keys (->> (events js/window "keydown")
+             (map key-event->keycode)
+             (filter SELECTOR_KEYS)
+             (map selector-key->keyword))
+      [k0 k1] (multiplex keys 2)
+      k1   (filter #{:up :down} k1)
+      list (array "  one" "  two" "  three")
+      c    (selector k0 list ["one" "two" "three"])]
+  (.log js/console (.join list "\n"))
+  (go (while true
+        (alt!
+          k1 ([v] (.log js/console (.join list "\n")))
+          c  ([v] (.log js/console v))))))
