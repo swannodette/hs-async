@@ -1,5 +1,5 @@
 (ns hs-async.core
-  (:refer-clojure :exclude [map filter distinct])
+  (:refer-clojure :exclude [map filter distinct remove])
   (:require [cljs.core.async :refer [>! <! chan put! take! timeout]]
             [goog.dom :as dom])
   (:require-macros [cljs.core.async.macros :refer [go alt!]]))
@@ -302,6 +302,15 @@
               :done))))
     cs))
 
+(defn remove
+  ([f source] (remove (chan) f source))
+  ([c f source]
+    (go (while true
+          (let [v (<! source)]
+            (when-not (f v)
+              (>! c v)))))
+    c))
+
 (defn hover-chan [el tag]
   (let [matcher (tag-match tag)
         matches (by-tag-name el tag)
@@ -313,6 +322,7 @@
                       (if-let [el (dom/getAncestor target matcher)]
                         el
                         :no-match))))
+               (remove #{:no-match})
                (map
                  #(index-of matches %)))
         out (->> (events el "mouseout")
@@ -370,11 +380,12 @@
     (alength (by-tag-name list "li")))
   IUIList
   (-select! [list n]
+    (.log js/console n)
     (set-class (nth (by-tag-name list "li") n) "selected"))
   (-unselect! [list n]
     (clear-class (nth (by-tag-name list "li") n))))
 
-#_(let [el    (by-id "list")
+(let [el    (by-id "list")
       hover (hover-chan el "li")
       keys  (->> (events js/window "keydown")
               (map key-event->keycode)
@@ -397,7 +408,7 @@
   (-unselect! [list n]
     (aset list n (.replace (aget list n) "* " "  "))))
 
-(let [keys (->> (events js/window "keydown")
+#_(let [keys (->> (events js/window "keydown")
              (map key-event->keycode)
              (filter SELECTOR_KEYS)
              (map selector-key->keyword))
