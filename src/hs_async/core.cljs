@@ -407,7 +407,7 @@
   (-unselect! [list n]
     (aset list n (.replace (aget list n) "* " "  "))))
 
-(let [keys    (->> (events js/window "keydown")
+#_(let [keys    (->> (events js/window "keydown")
                 (map key-event->keycode)
                 (filter SELECTOR_KEYS)
                 (map selector-key->keyword))
