@@ -311,6 +311,41 @@
               (>! c v)))))
     c))
 
+;; -----------------------------------------------------------------------------
+;; Selection process
+
+(defprotocol IUIList
+  (-select! [list n])
+  (-unselect! [list n]))
+
+(defn select [list idx key]
+  (if (= idx ::none)
+    (condp = key
+      :up (dec (count list))
+      :down 0)
+    (mod (({:up dec :down inc} key) idx)
+      (count list))))
+
+(defn selector [in list data]
+  (let [out (chan)]
+    (go
+      (loop [selected ::none]
+        (let [v (<! in)]
+          (cond
+            (= v :select) (do (>! out (nth data selected))
+                            (recur selected))
+            :else (do (when (number? selected)
+                        (-unselect! list selected))
+                    (if (= v :out)
+                      (recur ::none)
+                      (let [n (if (number? v) v (select list selected v))]
+                        (-select! list n)
+                        (recur n))))))))
+    out))
+
+;; -----------------------------------------------------------------------------
+;; HTML Demo
+
 (defn hover-chan [el tag]
   (let [matcher (tag-match tag)
         matches (by-tag-name el tag)
@@ -333,46 +368,11 @@
               (map #(do :out)))]
     (distinct (fan-in [over out]))))
 
-;; -----------------------------------------------------------------------------
-;; Selection process
-
-(defprotocol IUIList
-  (-select! [list n])
-  (-unselect! [list n]))
-
-(defn select [list idx key]
-  (if (= idx ::none)
-    (condp = key
-      :up (dec (count list))
-      :down 0)
-    (mod (({:up dec :down inc} key) idx)
-      (count list))))
-
 (defn selector-key->keyword [code]
   (condp = code
     UP_ARROW :up
     DOWN_ARROW :down
     ENTER :select))
-
-(defn selector [in list data]
-  (let [out (chan)]
-    (go
-      (loop [selected ::none]
-        (let [v (<! in)]
-          (cond
-            (= v :select) (do (>! out (nth data selected))
-                            (recur selected))
-            :else (do (when (number? selected)
-                        (-unselect! list selected))
-                    (if (= v :out)
-                      (recur ::none)
-                      (let [n (if (number? v) v (select list selected v))]
-                        (-select! list n)
-                        (recur n))))))))
-    out))
-
-;; -----------------------------------------------------------------------------
-;; HTML Demo
 
 (extend-type js/HTMLUListElement
   ICounted
@@ -407,14 +407,14 @@
   (-unselect! [list n]
     (aset list n (.replace (aget list n) "* " "  "))))
 
-#_(let [keys (->> (events js/window "keydown")
-             (map key-event->keycode)
-             (filter SELECTOR_KEYS)
-             (map selector-key->keyword))
+(let [keys    (->> (events js/window "keydown")
+                (map key-event->keycode)
+                (filter SELECTOR_KEYS)
+                (map selector-key->keyword))
       [k0 k1] (multiplex keys 2)
-      k1   (filter #{:up :down} k1)
-      list (array "  one" "  two" "  three")
-      c    (selector k0 list ["one" "two" "three"])]
+      k1      (filter #{:up :down} k1)
+      list    (array "  one" "  two" "  three")
+      c       (selector k0 list ["one" "two" "three"])]
   (.log js/console (.join list "\n"))
   (go (while true
         (alt!
