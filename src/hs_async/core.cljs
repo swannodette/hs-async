@@ -1,6 +1,7 @@
 (ns hs-async.core
   (:refer-clojure :exclude [map filter distinct])
-  (:require [cljs.core.async :refer [>! <! chan put! take! timeout]])
+  (:require [cljs.core.async :refer [>! <! chan put! take! timeout]]
+            [goog.dom :as dom])
   (:require-macros [cljs.core.async.macros :refer [go alt!]]))
 
 ;; ======================================================================
@@ -222,3 +223,159 @@
 
 #_(go (.log js/console (pr-str (<! (google "clojure")))))
 
+;; =============================================================================
+;; Getting fancier
+
+;; -----------------------------------------------------------------------------
+;; Declarations
+
+(def ENTER 13)
+(def UP_ARROW 38)
+(def DOWN_ARROW 40)
+(def SELECTOR_KEYS #{ENTER UP_ARROW DOWN_ARROW})
+
+;; -----------------------------------------------------------------------------
+;; Utils & DOM Helpers
+
+(defn by-id [id]
+  (.getElementById js/document id))
+
+(defn by-tag-name [el tag]
+  (.getElementsByTagName el tag))
+
+(defn set-class [el name]
+  (set! (.-className el) name))
+
+(defn clear-class [el name]
+  (set! (.-className el) ""))
+
+(defn key-event->keycode [e]
+  (.-keyCode e))
+
+(defn tag-match [tag]
+  (fn [el]
+    (when-let [tag-name (.-tagName el)]
+      (= tag (.toLowerCase tag-name)))))
+
+(defn index-of [node-list el]
+  (loop [i 0]
+    (if (< i (alength node-list))
+      (if (identical? (aget node-list i) el)
+        i
+        (recur (inc i)))
+      -1)))
+
+(extend-type default
+  ICounted
+  (-count [coll]
+    (if (instance? js/NodeList coll)
+      (alength coll)
+      (accumulating-seq-count coll)))
+  IIndexed
+  (-nth
+    ([coll n]
+      (-nth coll n nil))
+    ([coll n not-found]
+      (if (instance? js/NodeList coll)
+        (if (< n (count coll))
+          (aget coll n)
+          (throw (js/Error. "NodeList access out of bounds")))
+        (linear-traversal-nth coll (.floor js/Math n) not-found)))))
+
+;; -----------------------------------------------------------------------------
+;; Reactive support
+
+(defn hover-chan [el tag]
+  (let [matcher (tag-match tag)
+        matches (by-tag-name el tag)
+        over (->> (events el "mouseover")
+               (map
+                 #(let [target (.-target %)]
+                    (if (matcher target)
+                      target
+                      (if-let [el (dom/getAncestor target matcher)]
+                        el
+                        :no-match))))
+               (map
+                 #(index-of matches %)))
+        out (->> (events el "mouseout")
+              (filter
+                (fn [e]
+                  (and (matcher (.-target e))
+                       (not (matcher (.-relatedTarget e))))))
+              (map #(do :out)))]
+    (distinct (fan-in [over out]))))
+
+;; -----------------------------------------------------------------------------
+;; Selection process
+
+(defprotocol IUIList
+  (-select! [list n])
+  (-unselect! [list n]))
+
+(defn select [list idx key]
+  (if (= idx ::none)
+    (condp = key
+      :up (dec (count list))
+      :down 0)
+    (mod (({:up dec :down inc} key) idx)
+      (count list))))
+
+(defn selector-key->keyword [code]
+  (condp = code
+    UP_ARROW :up
+    DOWN_ARROW :down
+    ENTER :select))
+
+(defn selector [in list data]
+  (let [out (chan)]
+    (go
+      (loop [selected ::none]
+        (let [v (<! in)]
+          (cond
+            (= v :select) (do (>! out (nth data selected))
+                            (recur selected))
+            :else (do (when (number? selected)
+                        (-unselect! list selected))
+                    (if (= v :out)
+                      (recur ::none)
+                      (let [n (if (number? v) v (select list selected v))]
+                        (-select! list n)
+                        (recur n))))))))
+    out))
+
+;; -----------------------------------------------------------------------------
+;; HTML Demo
+
+(extend-type js/HTMLUListElement
+  ICounted
+  (-count [list]
+    (alength (by-tag-name list "li")))
+  IUIList
+  (-select! [list n]
+    (set-class (nth (by-tag-name list "li") n) "selected"))
+  (-unselect! [list n]
+    (clear-class (nth (by-tag-name list "li") n))))
+
+(let [el    (by-id "list")
+      hover (hover-chan el "li")
+      keys  (->> (events js/window "keydown")
+              (map key-event->keycode)
+              (filter SELECTOR_KEYS)
+              (map selector-key->keyword))
+      click (->> (events el "click")
+              (map #(do :select)))
+      c     (selector (fan-in [hover keys click])
+              el ["one" "two" "three"])]
+  (go (while true
+        (.log js/console (<! c)))))
+
+;; -----------------------------------------------------------------------------
+;; Array Demo
+
+(extend-type array
+  IUIList
+  (-select! [list n]
+    (aset list n (str "* " (aget list n))))
+  (-unselect! [list n]
+    (aset list n (.replace (aget list n) "* " ""))))
