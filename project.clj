@@ -17,7 +17,7 @@
   {:builds
    [{:id "hs-async"
      :source-paths ["src/hs_async"]
-     :compiler {:optimizations :whitespace
+     :compiler {:optimizations :none
                 :pretty-print false
-                :static-fns true
+                :output-dir "out" 
                 :output-to "main.js"}}]})

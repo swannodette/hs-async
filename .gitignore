@@ -1,7 +1,9 @@
+/out
 /target
 /lib
 /classes
 /checkouts
+main.js
 pom.xml
 pom.xml.asc
 *.jar
