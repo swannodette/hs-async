@@ -1,6 +1,6 @@
 (ns hs-async.core
   (:refer-clojure :exclude [map filter distinct remove])
-  (:require [cljs.core.async :refer [>! <! chan put! take! timeout]]
+  (:require [cljs.core.async :refer [>! <! chan put! take! timeout close!]]
             [goog.dom :as dom])
   (:require-macros [cljs.core.async.macros :refer [go alt!]]))
 
@@ -126,13 +126,12 @@
 ;; =============================================================================
 ;; More coordination
 
-(defn fan-in
-  ([ins] (fan-in (chan) ins))
-  ([c ins]
+(defn fan-in [ins]
+  (let [out (chan)]
     (go (while true
           (let [[x] (alts! ins)]
-            (>! c x))))
-    c))
+            (>! out x))))
+    out))
 
 (defn my-ints []
   (let [out (chan)]
@@ -332,6 +331,7 @@
       (loop [selected ::none]
         (let [v (<! in)]
           (cond
+            (nil? v) :ok
             (= v :select) (do (>! out (nth data selected))
                             (recur selected))
             :else (do (when (number? selected)
@@ -420,3 +420,26 @@
         (alt!
           k1 ([v] (.log js/console (.join list "\n")))
           c  ([v] (.log js/console v))))))
+
+(defn ->c [xs]
+  (let [out (chan)]
+    (go (loop [xs xs]
+          (if-not (empty? xs)
+            (do
+              (>! out (first xs))
+              (recur (rest xs)))
+            (close! out))))
+    out))
+
+#_(let [c (->c [:down :down :down :enter])]
+  (go (loop []
+        (when-let [x (<! c)]
+          (.log js/console x)
+          (recur)))))
+
+(let [test (->c [:down :down :down :select])
+      list (array "  one" "  two" "  three")
+      c    (selector test list ["one" "two" "three"])]
+  (go
+    (.log js/console (<! c))
+    (.log js/console (.join list "\n"))))
