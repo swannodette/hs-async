@@ -301,14 +301,13 @@
               :done))))
     cs))
 
-(defn remove
-  ([f source] (remove (chan) f source))
-  ([c f source]
+(defn remove [f source]
+  (let [out (chan)]
     (go (while true
           (let [v (<! source)]
             (when-not (f v)
-              (>! c v)))))
-    c))
+              (>! out v)))))
+    out))
 
 ;; -----------------------------------------------------------------------------
 ;; Selection process
@@ -421,7 +420,7 @@
           k1 ([v] (.log js/console (.join list "\n")))
           c  ([v] (.log js/console v))))))
 
-(defn ->c [xs]
+(defn spool [xs]
   (let [out (chan)]
     (go (loop [xs xs]
           (if-not (empty? xs)
@@ -431,13 +430,13 @@
             (close! out))))
     out))
 
-#_(let [c (->c [:down :down :down :enter])]
+#_(let [c (spool [1 2 3 4 5])]
   (go (loop []
         (when-let [x (<! c)]
           (.log js/console x)
           (recur)))))
 
-(let [test (->c [:down :down :down :select])
+#_(let [test (spool [:down :down :select])
       list (array "  one" "  two" "  three")
       c    (selector test list ["one" "two" "three"])]
   (go
