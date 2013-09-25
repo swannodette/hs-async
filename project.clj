@@ -8,8 +8,8 @@
                  "https://oss.sonatype.org/content/groups/staging/"}
 
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/clojurescript "0.0-1847"]
-                 [org.clojure/core.async "0.1.0-SNAPSHOT"]]
+                 [org.clojure/clojurescript "0.0-1889"]
+                 [core.async "0.1.0-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "0.3.2"]]
 
@@ -19,5 +19,5 @@
      :source-paths ["src/hs_async"]
      :compiler {:optimizations :none
                 :pretty-print false
-                :output-dir "out" 
+                :output-dir "out"
                 :output-to "main.js"}}]})

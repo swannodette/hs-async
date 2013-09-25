@@ -1,3 +1,6 @@
+clojurescript
+*.map
+/repl
 /out
 /target
 /lib
