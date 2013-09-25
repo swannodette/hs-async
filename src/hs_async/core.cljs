@@ -245,7 +245,7 @@
 (defn set-class [el name]
   (set! (.-className el) name))
 
-(defn clear-class [el name]
+(defn clear-class [el]
   (set! (.-className el) ""))
 
 (defn key-event->keycode [e]
