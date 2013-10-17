@@ -7,7 +7,7 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/clojure "0.0-1934"]
+                 [org.clojure/clojurescript "0.0-1934"]
                  [org.clojure/core.async "0.1.242.0-44b1e3-alpha"]]
 
   :plugins [[lein-cljsbuild "0.3.3"]]
