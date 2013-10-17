@@ -4,14 +4,13 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :repositories {"sonatype-staging"
-                 "https://oss.sonatype.org/content/groups/staging/"}
+  :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/clojurescript "0.0-1889"]
-                 [core.async "0.1.0-SNAPSHOT"]]
+                 [org.clojure/clojure "0.0-1934"]
+                 [org.clojure/core.async "0.1.242.0-44b1e3-alpha"]]
 
-  :plugins [[lein-cljsbuild "0.3.2"]]
+  :plugins [[lein-cljsbuild "0.3.3"]]
 
   :cljsbuild
   {:builds
